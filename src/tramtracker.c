@@ -1,12 +1,14 @@
 #include <pebble.h>
+#include <pebble_fonts.h>
 
 static Window *window;
 static TextLayer *text_layer;
-static TextLayer *route_layer;
+static Layer *route_layer;
 static TextLayer *time_layer;
+static TextLayer *status_layer;
 
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
-  text_layer_set_text(text_layer, "Updating...");
+  text_layer_set_text(status_layer, "Sending Request...");
   DictionaryIterator *iter;
   app_message_outbox_begin(&iter);
   Tuplet value = TupletInteger(1, 42);
@@ -15,11 +17,11 @@ static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
 }
 
 static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
-  text_layer_set_text(text_layer, "Up");
+  //text_layer_set_text(text_layer, "Up");
 }
 
 static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
-  text_layer_set_text(text_layer, "Down");
+  //text_layer_set_text(text_layer, "Down");
 }
 
 static void click_config_provider(void *context) {
@@ -32,35 +34,58 @@ static void window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
 
-  text_layer = text_layer_create((GRect) { .origin = { 0, 32 }, .size = { bounds.size.w, 20 } });
+  text_layer = text_layer_create((GRect) { .origin = { 0, 0 }, .size = { bounds.size.w, 50 } });
   text_layer_set_text(text_layer, "TramWatch");
   text_layer_set_text_alignment(text_layer, GTextAlignmentCenter);
+  text_layer_set_font(text_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
   layer_add_child(window_layer, text_layer_get_layer(text_layer));
 
-  route_layer = text_layer_create((GRect) { .origin = { 0, 64 }, .size = { bounds.size.w, 20 } });
-  text_layer_set_text(route_layer, "Welcome");
-  text_layer_set_text_alignment(route_layer, GTextAlignmentCenter);
-  layer_add_child(window_layer, text_layer_get_layer(route_layer));
+  route_layer = layer_create((GRect) { .origin = { 0, 50 }, .size = { bounds.size.w, 100 } });
+  layer_add_child(window_layer, route_layer);
 
   time_layer = text_layer_create((GRect) { .origin = { 0, 96 }, .size = { bounds.size.w, 20 } });
   text_layer_set_text(time_layer, "Hooray");
   text_layer_set_text_alignment(time_layer, GTextAlignmentCenter);
   layer_add_child(window_layer, text_layer_get_layer(time_layer));
+
+  status_layer = text_layer_create((GRect) { .origin = { 0, 132 }, .size = { bounds.size.w, 20 } });
+  text_layer_set_text(status_layer, "-");
+  text_layer_set_text_alignment(status_layer, GTextAlignmentCenter);
+  text_layer_set_font(status_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+  layer_add_child(window_layer, text_layer_get_layer(status_layer));
+}
+
+static void render_route_layer (char *routes) {
+  layer_remove_child_layers(route_layer);
+
+  GRect bounds = layer_get_bounds(route_layer);
+
+  static TextLayer *route1;
+  route1 = text_layer_create((GRect) { .origin = { 0, 0 }, .size = { bounds.size.w, bounds.size.h } });
+  text_layer_set_text(route1, routes);
+  text_layer_set_font(route1, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
+  text_layer_set_text_alignment(route1, GTextAlignmentCenter);
+  layer_add_child(route_layer, text_layer_get_layer(route1));
+
 }
 
 static void window_unload(Window *window) {
   text_layer_destroy(text_layer);
+  layer_destroy(route_layer);
+  text_layer_destroy(time_layer);
+  text_layer_destroy(status_layer);
+
 }
 
 void out_sent_handler(DictionaryIterator *sent, void *context) {
    // outgoing message was delivered
-   text_layer_set_text(text_layer, "Delivered!");
+   text_layer_set_text(status_layer, "Waiting for Response...");
  }
 
 
 void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context) {
   // outgoing message failed
-  text_layer_set_text(text_layer, "Failed!!");
+  text_layer_set_text(status_layer, "Failed!");
 }
 enum {
     AKEY_NUMBER,
@@ -69,7 +94,8 @@ enum {
 
 void in_received_handler(DictionaryIterator *iter, void *context) {
   // incoming message received
-  text_layer_set_text(text_layer, "RECEIVED!!");
+
+  text_layer_set_text(status_layer, "Done");
 
   char *StopID = NULL;
 
@@ -92,7 +118,7 @@ void in_received_handler(DictionaryIterator *iter, void *context) {
   	if (text_tuple) {
     	APP_LOG(APP_LOG_LEVEL_DEBUG, "Text: %s", text_tuple->value->cstring);
     	if (!routeSet) {
-    		text_layer_set_text(route_layer, text_tuple->value->cstring);
+    		render_route_layer(text_tuple->value->cstring);
     		routeSet = true;
     	} else {
     		text_layer_set_text(time_layer, text_tuple->value->cstring);
