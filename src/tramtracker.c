@@ -8,25 +8,26 @@ static Layer *route_layer;
 static Layer *time_layer;
 static TextLayer *status_layer;
 
-static void update_watch () {
+static void fetch_stop_data (int stop_number) {
   text_layer_set_text(status_layer, "Sending Request...");
   DictionaryIterator *iter;
   app_message_outbox_begin(&iter);
-  Tuplet value = TupletInteger(1, 42);
+  Tuplet value = TupletInteger(1, stop_number);
   dict_write_tuplet(iter, &value);
   app_message_outbox_send();
 }
 
+
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
-  update_watch();
+  fetch_stop_data(1923);
 }
 
 static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
-  //text_layer_set_text(text_layer, "Up");
+  fetch_stop_data(3400);
 }
 
 static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
-  //text_layer_set_text(text_layer, "Down");
+  fetch_stop_data(3605);
 }
 
 static void click_config_provider(void *context) {
@@ -42,9 +43,9 @@ static void window_load(Window *window) {
   text_layer = text_layer_create((GRect) { .origin = { 0, 0 }, .size = { bounds.size.w, 50 } });
   text_layer_set_text(text_layer, "TramWatch");
   text_layer_set_text_alignment(text_layer, GTextAlignmentCenter);
-  text_layer_set_font(text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+  text_layer_set_font(text_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
 
-  route_layer = layer_create((GRect) { .origin = { 0, 40 }, .size = { bounds.size.w, 40 } });
+  route_layer = layer_create((GRect) { .origin = { 0, 42 }, .size = { bounds.size.w, 40 } });
 
   time_layer = layer_create((GRect) { .origin = { 0, 75 }, .size = { bounds.size.w, 100 } });
 
@@ -123,7 +124,7 @@ static char* get_token (char *string, char *token) {
 
   *r++ = '\0';
 
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "In function - string: %s - r: %s", string, r);
+  //APP_LOG(APP_LOG_LEVEL_DEBUG, "In function - string: %s - r: %s", string, r);
 
   return r;
 }
@@ -147,13 +148,14 @@ static void render_time_layer (char *times) {
 	token = times;
 	times = tmp;
 
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "routes: %s - token: %s", times, token);
+	static char timeNumber[100];
+    strncpy(timeNumber, (char *)token, 100);
 
     static TextLayer *time;
     time = text_layer_create((GRect) { .origin = {time_width * currentStrCnt , 0 }, .size = { time_width, bounds.size.h } });
 	char *find = ",";
 	char *replace = "\n";
-	text_layer_set_text(time, str_replace(token, find, replace));
+	text_layer_set_text(time, str_replace(timeNumber, find, replace));
     text_layer_set_font(time, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
     text_layer_set_text_alignment(time, GTextAlignmentCenter);
     layer_add_child(time_layer, text_layer_get_layer(time));
@@ -183,12 +185,15 @@ static void render_route_layer (char *routes) {
 	token = routes;
 	routes = tmp;
 
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "routes: %s - token: %s", routes, token);
+	static char routeNumber[100];
+    strncpy(routeNumber, (char *)token, 100);
 
     static TextLayer *route;
     route = text_layer_create((GRect) { .origin = {route_width * currentStrCnt , 0 }, .size = { route_width, bounds.size.h } });
-	text_layer_set_text(route, token);
-    text_layer_set_font(route, fonts_get_system_font(FONT_KEY_BITHAM_34_MEDIUM_NUMBERS));
+	char *find = ",";
+	char *replace = "\n";
+	text_layer_set_text(route, str_replace(routeNumber, find, replace));
+    text_layer_set_font(route, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
     text_layer_set_text_alignment(route, GTextAlignmentCenter);
     layer_add_child(route_layer, text_layer_get_layer(route));
 
@@ -217,39 +222,44 @@ void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, voi
   text_layer_set_text(status_layer, "Failed!");
 }
 enum {
-    AKEY_NUMBER,
-    AKEY_TEXT,
+    HEADER_KEY,
+    DATA_KEY,
 };
 
 void in_received_handler(DictionaryIterator *iter, void *context) {
   // incoming message received
   light_enable_interaction();
   text_layer_set_text(status_layer, "Done");
-/*
-  Tuple *number_tuple = dict_find(iter, AKEY_NUMBER);
-  if (number_tuple) {
-  	//APP_LOG(APP_LOG_LEVEL_DEBUG, "Int: %s", number_tuple->value->cstring);
-  	text_layer_set_text(text_layer, number_tuple->value->cstring);
-  }
-*/
+
+  Tuple *number_tuple = dict_find(iter, HEADER_KEY);
+
+  int headerLength = strlen(number_tuple->value->cstring) + 1;
+  char header[headerLength];
+  strncpy(header, number_tuple->value->cstring, headerLength);
+
   // Check for fields you expect to receive
-  Tuple *text_tuple;// = dict_find(iter, AKEY_TEXT);
+  Tuple *text_tuple = dict_find(iter, DATA_KEY);
 
-  bool routeSet = false;
-  while ((text_tuple = dict_read_next(iter))) {
-  	// Act on the found fields received
-  	if (text_tuple) {
-    	APP_LOG(APP_LOG_LEVEL_DEBUG, "Text: %s", text_tuple->value->cstring);
-    	if (!routeSet) {
-    		render_route_layer(text_tuple->value->cstring);
-    		routeSet = true;
-    	} else {
-    		render_time_layer(text_tuple->value->cstring);
-    	}
-  	}
+  //text_tuple = dict_read_next(iter);
+
+  // Act on the found fields received
+
+  //APP_LOG(APP_LOG_LEVEL_DEBUG, "Header: %s", header);
+
+  //APP_LOG(APP_LOG_LEVEL_DEBUG, "Data: %s", text_tuple->value->cstring);
+
+  if (strcmp(header, "stopID") == 0) {
+   // APP_LOG(APP_LOG_LEVEL_DEBUG, "Setting StopID: %s", text_tuple->value->cstring);
+    static char stopID[100];
+    strncpy(stopID, (char *)text_tuple->value->cstring, 100);
+    text_layer_set_text(text_layer, stopID);
+  } else if (strcmp(header, "routes") == 0) {
+   // APP_LOG(APP_LOG_LEVEL_DEBUG, "Setting Routes: %s", text_tuple->value->cstring);
+    render_route_layer(text_tuple->value->cstring);
+  } else if (strcmp(header, "times") == 0){
+   // APP_LOG(APP_LOG_LEVEL_DEBUG, "Setting Times: %s", text_tuple->value->cstring);
+    render_time_layer(text_tuple->value->cstring);
   }
-
-
 }
 
 

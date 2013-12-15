@@ -18,8 +18,8 @@ Pebble.addEventListener("ready",
 function AddMessageListener () {
 	Pebble.addEventListener("appmessage",
   		function(e) {
-    		console.log("Received message: " + e.payload);
-    		TestJson();
+    		console.log("Received message: " + e.payload[1]);
+    		TestJson(e.payload[1]);
   		}
 	);
 };
@@ -82,38 +82,45 @@ function readyStateChange (xmlHTTP) {
     			//timeString += ";";
 			}
 			var keys = routesArray.getKeys();
-			pebbleResponse[0] = keys.join(';');
+			pebbleResponse[1] = keys.join(';')  + ";";
 			var timeString = "";
 			console.log("Routes Array: " + routesArray.toString());
 			for (var i=0; i< keys.length; i++) {
 				key = keys[i];
 				timeString += routesArray[key].join(',') + ";";
 			}
-			pebbleResponse[1] = timeString;
+			pebbleResponse[2] = timeString;
 
-			console.log(JSON.stringify(pebbleResponse));
 			if (specialEvent) {
 				//Pebble.showSimpleNotificationOnPebble("Special Event", specialEvent);
 			}
-    		console.log("done!");
-			console.log("Size:" + roughSizeOfObject(pebbleResponse));
-    		var transactionId = Pebble.sendAppMessage(
-    			pebbleResponse,
-  				function(e) {
-    				console.log("Successfully delivered message with transactionId=" + e.data.transactionId);
-    			},
-  				function(e) {
-    				console.log("Unable to deliver message with transactionId=" + e.data.transactionId + " Error is: " + e.message);
-  				}
-			);
+			SendAppMessage("stopID", pebbleResponse[0]);
+			SendAppMessage("routes", pebbleResponse[1]);
+			setTimeout(function () {SendAppMessage("times", pebbleResponse[2]);}, 100);
 		}
 }
 
-function TestJson () {
+function SendAppMessage (header, content) {
+	console.log("Sending Header: " + header + " with content: " + content);
+	var transactionId = Pebble.sendAppMessage(
+    	{
+    		"0":header,
+    		"1":content
+    	},
+  		function(e) {
+    		console.log("Successfully delivered message with transactionId=" + e.data.transactionId);
+    	},
+  		function(e) {
+    		console.log("Unable to deliver message with transactionId=" + e.data.transactionId + " Error is: " + e.message);
+  		}
+	);
+}
+
+function TestJson (trackerStopID) {
 	var xmlHTTP = new XMLHttpRequest();
 	xmlHTTP.open("POST", "http://www.yarratrams.com.au/base/tramTrackerController/TramInfoAjaxRequest",true);
 	xmlHTTP.setRequestHeader( "Content-Type","application/x-www-form-urlencoded");
-	var params = "StopID=3013&Route=&LowFloorOnly=false";
+	var params = "StopID=" + trackerStopID + "&Route=&LowFloorOnly=false";
 	xmlHTTP.onreadystatechange = function () {
 		readyStateChange(xmlHTTP);
 	};
