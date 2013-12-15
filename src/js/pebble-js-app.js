@@ -1,3 +1,12 @@
+Object.prototype.getKeys=function() {
+	var keyArray = new Array();
+	for (var key in this) {
+		if (key == "getKeys") continue;
+		keyArray.push(key);
+	}
+	return keyArray;
+}
+
 
 Pebble.addEventListener("ready",
   function(e) {
@@ -43,16 +52,23 @@ function readyStateChange (xmlHTTP) {
 								//+ "-" + jsonObject.TramTrackerResponse.StopName
 								//+ "-" + jsonObject.TramTrackerResponse.StopNameSecondary
 								//+ jsonObject.TramTrackerResponse.CityDirection.trim();
-			routeString = "";
-			timeString = "";
+			var routesArray = {};
+			//timeString = "";
+			console.log("ArrivalsPages: " + jsonObject.TramTrackerResponse.ArrivalsPages.length);
 			for (var i = 0; i < jsonObject.TramTrackerResponse.ArrivalsPages.length; i++) {
 				var arrivalsPage = jsonObject.TramTrackerResponse.ArrivalsPages[i];
 				for (var j = 0; j < arrivalsPage.length; j++) {
 					var tramInfo = arrivalsPage[j];
-					if (j == 0) {
-						routeString += tramInfo.RouteNo + ";";
+					/*if (routes.indexOf(tramInfo.RouteNo) < 0) {
+						routes.push(tramInfo.RouteNo);
+					}*/
+					var routeNumberStr = tramInfo.RouteNo.toString();
+					if (!(routeNumberStr in routesArray)) {
+						routesArray[routeNumberStr] = new Array();
 					}
-					timeString += tramInfo.Arrival + ",";
+					routesArray[routeNumberStr].push((tramInfo.Arrival == "NOW") ? "-" : tramInfo.Arrival);
+
+					//timeString += tramInfo.Arrival + ",";
 					//pebbleResponse.push(tramInfo.RouteNo);
 					//pebbleResponse.push(tramInfo.Destination);
 					//pebbleResponse.push(tramInfo.HasDisruption);
@@ -63,10 +79,17 @@ function readyStateChange (xmlHTTP) {
 						specialEvent = tramInfo.SpecialEventMessage;
 					}
     			}
-    			timeString += ";";
+    			//timeString += ";";
 			}
-			pebbleResponse[1] = routeString;
-			pebbleResponse[2] = timeString;
+			var keys = routesArray.getKeys();
+			pebbleResponse[0] = keys.join(';');
+			var timeString = "";
+			console.log("Routes Array: " + routesArray.toString());
+			for (var i=0; i< keys.length; i++) {
+				key = keys[i];
+				timeString += routesArray[key].join(',') + ";";
+			}
+			pebbleResponse[1] = timeString;
 
 			console.log(JSON.stringify(pebbleResponse));
 			if (specialEvent) {
@@ -90,7 +113,7 @@ function TestJson () {
 	var xmlHTTP = new XMLHttpRequest();
 	xmlHTTP.open("POST", "http://www.yarratrams.com.au/base/tramTrackerController/TramInfoAjaxRequest",true);
 	xmlHTTP.setRequestHeader( "Content-Type","application/x-www-form-urlencoded");
-	var params = "StopID=1923&Route=&LowFloorOnly=false";
+	var params = "StopID=3013&Route=&LowFloorOnly=false";
 	xmlHTTP.onreadystatechange = function () {
 		readyStateChange(xmlHTTP);
 	};
