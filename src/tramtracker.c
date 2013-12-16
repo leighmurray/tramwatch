@@ -1,12 +1,25 @@
 #include <pebble.h>
 #include <pebble_fonts.h>
 
-
 static Window *window;
 static TextLayer *text_layer;
 static Layer *route_layer;
 static Layer *time_layer;
 static TextLayer *status_layer;
+int stopIDs[3] = {0};
+//1923
+//3400
+//3605
+
+static void get_config () {
+  text_layer_set_text(status_layer, "Getting Config...");
+  DictionaryIterator *iter;
+  app_message_outbox_begin(&iter);
+  char *functionName = "get_config";
+  Tuplet value = TupletCString(1, functionName);
+  dict_write_tuplet(iter, &value);
+  app_message_outbox_send();
+}
 
 static void fetch_stop_data (int stop_number) {
   text_layer_set_text(status_layer, "Sending Request...");
@@ -17,17 +30,16 @@ static void fetch_stop_data (int stop_number) {
   app_message_outbox_send();
 }
 
-
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
-  fetch_stop_data(1923);
+  fetch_stop_data(stopIDs[1]);
 }
 
 static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
-  fetch_stop_data(3400);
+  fetch_stop_data(stopIDs[0]);
 }
 
 static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
-  fetch_stop_data(3605);
+  fetch_stop_data(stopIDs[2]);
 }
 
 static void click_config_provider(void *context) {
@@ -200,7 +212,46 @@ static void render_route_layer (char *routes) {
 	currentStrCnt++;
 
   } while (strcmp(routes, ""));
+}
 
+static long myAtoi(const char *s) {
+    const char *p = s, *q;
+    long n = 0;
+    int sign = 1, k = 1;
+    //DEBUG("myAtol '%s'", s)
+    if (p != NULL) {
+        if (*p != '\0') {
+            if ((*p == '+') || (*p == '-')) {
+                if (*p++ == '-') sign = -1;
+            }
+            for (q = p; (*p != '\0'); p++);
+            for (--p; p >= q; --p, k *= 10) n += (*p - '0') * k;
+        }
+    }
+    return n * sign;
+}
+
+static void set_stops (char *stopsToSet) {
+
+  char search[2] = ";";
+  int currentStrCnt = 0;
+
+  do {
+    char *token = get_token(stopsToSet, search);
+
+	char *tmp = token;
+	token = stopsToSet;
+	stopsToSet = tmp;
+	APP_LOG(APP_LOG_LEVEL_DEBUG, "Setting Stop %d to %s", currentStrCnt, token);
+	int stopNumber = myAtoi(token);
+	APP_LOG(APP_LOG_LEVEL_DEBUG, "Atoi Worked: %d", stopNumber);
+	stopIDs[currentStrCnt] = stopNumber;//
+
+    currentStrCnt++;
+
+  } while (strcmp(stopsToSet, ""));
+
+  text_layer_set_text(status_layer, "Config set");
 }
 
 static void window_unload(Window *window) {
@@ -216,11 +267,11 @@ void out_sent_handler(DictionaryIterator *sent, void *context) {
    text_layer_set_text(status_layer, "Waiting for Response...");
  }
 
-
 void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context) {
   // outgoing message failed
   text_layer_set_text(status_layer, "Failed!");
 }
+
 enum {
     HEADER_KEY,
     DATA_KEY,
@@ -256,12 +307,13 @@ void in_received_handler(DictionaryIterator *iter, void *context) {
   } else if (strcmp(header, "routes") == 0) {
    // APP_LOG(APP_LOG_LEVEL_DEBUG, "Setting Routes: %s", text_tuple->value->cstring);
     render_route_layer(text_tuple->value->cstring);
-  } else if (strcmp(header, "times") == 0){
+  } else if (strcmp(header, "times") == 0) {
    // APP_LOG(APP_LOG_LEVEL_DEBUG, "Setting Times: %s", text_tuple->value->cstring);
     render_time_layer(text_tuple->value->cstring);
+  } else if (strcmp(header, "set_stops") == 0) {
+    set_stops(text_tuple->value->cstring);
   }
 }
-
 
 void in_dropped_handler(AppMessageResult reason, void *context) {
   // incoming message dropped
@@ -296,7 +348,6 @@ int main(void) {
   init();
 
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Done initializing, pushed window: %p", window);
-
   app_event_loop();
   deinit();
 }

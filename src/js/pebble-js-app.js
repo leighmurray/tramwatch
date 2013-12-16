@@ -12,17 +12,50 @@ Pebble.addEventListener("ready",
   function(e) {
   	AddMessageListener();
 	console.log("Yes, it's running!!!");
+	SendStops();
   }
 );
 
 function AddMessageListener () {
 	Pebble.addEventListener("appmessage",
   		function(e) {
-    		console.log("Received message: " + e.payload[1]);
+  			console.log("Received message: " + e.payload[1]);
+  			if (e.payload[1] == "get_config") {
+				SendStops();
+  				return;
+  			}
+
     		TestJson(e.payload[1]);
   		}
 	);
+	Pebble.addEventListener("showConfiguration",
+		function(e) {
+			Pebble.openURL("http://tw.leighmurray.com");
+		}
+	);
+	Pebble.addEventListener("webviewclosed",
+  		function(e) {
+  			var stopStr = "";
+    		console.log("Configuration window returned: " + e.response);
+    		var configuration = JSON.parse(e.response);
+
+    		for (var i = 0; i < configuration.length; i++) {
+    			var returnedObject = configuration[i];
+				SetConfig(returnedObject.name, returnedObject.value);
+				SendStops();
+    		}
+  		}
+	);
 };
+
+function SendStops () {
+	SendAppMessage("set_stops", localStorage["stop1"] + ";" + localStorage["stop2"] + ";" + localStorage["stop3"] + ";");
+}
+
+function SetConfig (key, value) {
+	console.log("Setting Key:" + key + " - Value:" + value);
+	localStorage[key] = value;
+}
 
 function GetTramTimes () {
 	var req = new XMLHttpRequest();
