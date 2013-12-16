@@ -48,13 +48,17 @@ function AddMessageListener () {
 	);
 };
 
+function GetConfig (key) {
+	return window.localStorage.getItem(key);
+}
+
 function SendStops () {
-	SendAppMessage("set_stops", localStorage["stop1"] + ";" + localStorage["stop2"] + ";" + localStorage["stop3"] + ";");
+	SendAppMessage("set_stops", GetConfig("stop1") + ";" + GetConfig("stop2") + ";" + GetConfig("stop3") + ";");
 }
 
 function SetConfig (key, value) {
 	console.log("Setting Key:" + key + " - Value:" + value);
-	localStorage[key] = value;
+	window.localStorage.setItem(key, value);
 }
 
 function GetTramTimes () {
