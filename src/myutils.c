@@ -87,4 +87,3 @@ long myAtoi(const char *s) {
     }
     return n * sign;
 }
-

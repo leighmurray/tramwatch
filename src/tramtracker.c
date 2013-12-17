@@ -8,9 +8,14 @@ static Layer *route_layer;
 static Layer *time_layer;
 static TextLayer *status_layer;
 int stopIDs[3] = {0};
+int currentStop = 0;
+int updateInterval = 15;
+int updateCounter = 0;
+char stopIDString[5];
 //1923
 //3400
 //3605
+//3013
 
 static void get_config () {
   text_layer_set_text(status_layer, "Getting Config...");
@@ -22,25 +27,57 @@ static void get_config () {
   app_message_outbox_send();
 }
 
-static void fetch_stop_data (int stop_number) {
+static void clear_layers () {
+	layer_remove_child_layers(route_layer);
+	layer_remove_child_layers(time_layer);
+}
+
+static void fetch_stop_data () {
   text_layer_set_text(status_layer, "Sending Request...");
   DictionaryIterator *iter;
   app_message_outbox_begin(&iter);
-  Tuplet value = TupletInteger(1, stop_number);
+  Tuplet value = TupletInteger(1, stopIDs[currentStop]);
   dict_write_tuplet(iter, &value);
   app_message_outbox_send();
+  updateCounter = 0;
+}
+
+static void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
+    updateCounter++;
+    if (updateCounter >= updateInterval) {
+    	fetch_stop_data();
+    }
+}
+
+static void set_current_stop (int stopNumber) {
+	currentStop = stopNumber;
+
+    snprintf(stopIDString, 5, "%d", stopIDs[currentStop]);
+}
+
+static void cycle_current_stop () {
+ int n = sizeof(stopIDs)/sizeof(stopIDs[0]);
+ int newStop = currentStop+1;
+ if (newStop == n){
+ 	newStop = 0;
+ }
+ set_current_stop(newStop);
+ clear_layers();
+
+ text_layer_set_text(text_layer, stopIDString);
 }
 
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
-  fetch_stop_data(stopIDs[1]);
+  //fetch_stop_data();
 }
 
 static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
-  fetch_stop_data(stopIDs[0]);
+
 }
 
 static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
-  fetch_stop_data(stopIDs[2]);
+  cycle_current_stop();
+  fetch_stop_data();
 }
 
 static void click_config_provider(void *context) {
@@ -56,7 +93,7 @@ static void window_load(Window *window) {
   text_layer = text_layer_create((GRect) { .origin = { 0, 0 }, .size = { bounds.size.w, 50 } });
   text_layer_set_text(text_layer, "TramWatch");
   text_layer_set_text_alignment(text_layer, GTextAlignmentCenter);
-  text_layer_set_font(text_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
+  text_layer_set_font(text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
 
   route_layer = layer_create((GRect) { .origin = { 0, 42 }, .size = { bounds.size.w, 40 } });
 
@@ -167,6 +204,7 @@ static void set_stops (char *stopsToSet) {
   } while (strcmp(stopsToSet, ""));
 
   text_layer_set_text(status_layer, "Config set");
+  fetch_stop_data();
 }
 
 static void window_unload(Window *window) {
@@ -194,7 +232,6 @@ enum {
 
 void in_received_handler(DictionaryIterator *iter, void *context) {
   // incoming message received
-  light_enable_interaction();
   text_layer_set_text(status_layer, "Done");
 
   Tuple *number_tuple = dict_find(iter, HEADER_KEY);
@@ -216,8 +253,8 @@ void in_received_handler(DictionaryIterator *iter, void *context) {
 
   if (strcmp(header, "stopID") == 0) {
    // APP_LOG(APP_LOG_LEVEL_DEBUG, "Setting StopID: %s", text_tuple->value->cstring);
-    static char stopID[100];
-    strncpy(stopID, (char *)text_tuple->value->cstring, 100);
+    static char stopID[128];
+    strncpy(stopID, (char *)text_tuple->value->cstring, 128);
     text_layer_set_text(text_layer, stopID);
   } else if (strcmp(header, "routes") == 0) {
    // APP_LOG(APP_LOG_LEVEL_DEBUG, "Setting Routes: %s", text_tuple->value->cstring);
@@ -227,6 +264,8 @@ void in_received_handler(DictionaryIterator *iter, void *context) {
     render_time_layer(text_tuple->value->cstring);
   } else if (strcmp(header, "set_stops") == 0) {
     set_stops(text_tuple->value->cstring);
+  } else if (strcmp(header, "error") == 0) {
+  	text_layer_set_text(status_layer, text_tuple->value->cstring);
   }
 }
 
@@ -249,6 +288,8 @@ static void init(void) {
   app_message_register_outbox_sent(out_sent_handler);
   app_message_register_outbox_failed(out_failed_handler);
 
+  tick_timer_service_subscribe(SECOND_UNIT, handle_second_tick);
+
   const uint32_t inbound_size = 64;
   const uint32_t outbound_size = 64;
   app_message_open(inbound_size, outbound_size);
@@ -256,6 +297,7 @@ static void init(void) {
 
 static void deinit(void) {
   window_destroy(window);
+  tick_timer_service_unsubscribe();
 }
 
 

@@ -1,3 +1,5 @@
+var currentStopID;
+
 Object.prototype.getKeys=function() {
 	var keyArray = new Array();
 	for (var key in this) {
@@ -25,7 +27,7 @@ function AddMessageListener () {
   				return;
   			}
 
-    		TestJson(e.payload[1]);
+    		RetrieveStopInfo(e.payload[1]);
   		}
 	);
 	Pebble.addEventListener("showConfiguration",
@@ -42,8 +44,8 @@ function AddMessageListener () {
     		for (var i = 0; i < configuration.length; i++) {
     			var returnedObject = configuration[i];
 				SetConfig(returnedObject.name, returnedObject.value);
-				SendStops();
     		}
+    		SendStops();
   		}
 	);
 };
@@ -61,20 +63,6 @@ function SetConfig (key, value) {
 	window.localStorage.setItem(key, value);
 }
 
-function GetTramTimes () {
-	var req = new XMLHttpRequest();
-  	req.open('GET', 'http://tw.leighmurray.com', true);
-  	req.onload = function(e) {
-    if (req.readyState == 4 && req.status == 200) {
-      if(req.status == 200) {
-        var response = JSON.parse(req.responseText);
-        console.log("Response: " + req.responseText);
-      } else { console.log("Error"); }
-    }
-  }
-  req.send(null);
-}
-
 function readyStateChange (xmlHTTP) {
 		if (xmlHTTP.readyState == 4 && xmlHTTP.status == 200) {
 			var pebbleResponse = {};
@@ -85,10 +73,22 @@ function readyStateChange (xmlHTTP) {
 
 			var jsonObject = JSON.parse(xmlHTTP.responseText);
 
-			pebbleResponse[0] = "" + jsonObject.TramTrackerResponse.StopID;
-								//+ "-" + jsonObject.TramTrackerResponse.StopName
-								//+ "-" + jsonObject.TramTrackerResponse.StopNameSecondary
-								//+ jsonObject.TramTrackerResponse.CityDirection.trim();
+			if (jsonObject.ErrorMessage) {
+				console.log("TramTracker Request Error:" + jsonObject.ErrorMessage);
+				var splitErrorMessage = jsonObject.ErrorMessage.split("]")[1];
+				SendAppMessage("error", (splitErrorMessage ? splitErrorMessage : jsonObject.ErrorMessage));
+				return;
+			}
+
+			if (currentStopID != jsonObject.TramTrackerResponse.StopID) {
+				// should send an app message prob
+				return;
+			}
+
+			pebbleResponse[0] =// "" + jsonObject.TramTrackerResponse.StopID + "-" +
+								jsonObject.TramTrackerResponse.StopName.substr(0, 19)
+								+ "\n" + jsonObject.TramTrackerResponse.StopNameSecondary.substr(0, 19)
+								+ "\nto " + jsonObject.TramTrackerResponse.CityDirection.split("towards ")[1].substr(0, 19);
 			var routesArray = {};
 			//timeString = "";
 			console.log("ArrivalsPages: " + jsonObject.TramTrackerResponse.ArrivalsPages.length);
@@ -103,7 +103,7 @@ function readyStateChange (xmlHTTP) {
 					if (!(routeNumberStr in routesArray)) {
 						routesArray[routeNumberStr] = new Array();
 					}
-					routesArray[routeNumberStr].push((tramInfo.Arrival == "NOW") ? "-" : tramInfo.Arrival);
+					routesArray[routeNumberStr].push(tramInfo.Arrival);
 
 					//timeString += tramInfo.Arrival + ",";
 					//pebbleResponse.push(tramInfo.RouteNo);
@@ -131,13 +131,28 @@ function readyStateChange (xmlHTTP) {
 			if (specialEvent) {
 				//Pebble.showSimpleNotificationOnPebble("Special Event", specialEvent);
 			}
+
 			SendAppMessage("stopID", pebbleResponse[0]);
-			SendAppMessage("routes", pebbleResponse[1]);
-			setTimeout(function () {SendAppMessage("times", pebbleResponse[2]);}, 100);
+			setTimeout(function () {CheckStopSendAppMessage(currentStopID, "routes", pebbleResponse[1]);}, 1000);
+			setTimeout(function () {CheckStopSendAppMessage(currentStopID, "times", pebbleResponse[2]);}, 2000);
 		}
 }
 
+function CheckStopSendAppMessage (stopID, header, content) {
+	if (stopID == currentStopID) {
+		SendAppMessage(header, content);
+	}
+}
+
 function SendAppMessage (header, content) {
+	// TODO! Make headers/functions into int (use config for names)
+	// so more space available for content
+	var maxLength = 47;
+	maxLength -= header.length;
+	if (content.length > maxLength) {
+		console.log("Warning! SendAppMessage trimming content to " + maxLength + ". Orig length:" + content.length);
+		content = content.substr(0, maxLength);
+	}
 	console.log("Sending Header: " + header + " with content: " + content);
 	var transactionId = Pebble.sendAppMessage(
     	{
@@ -153,7 +168,8 @@ function SendAppMessage (header, content) {
 	);
 }
 
-function TestJson (trackerStopID) {
+function RetrieveStopInfo (trackerStopID) {
+	currentStopID = trackerStopID;
 	var xmlHTTP = new XMLHttpRequest();
 	xmlHTTP.open("POST", "http://www.yarratrams.com.au/base/tramTrackerController/TramInfoAjaxRequest",true);
 	xmlHTTP.setRequestHeader( "Content-Type","application/x-www-form-urlencoded");
@@ -162,85 +178,4 @@ function TestJson (trackerStopID) {
 		readyStateChange(xmlHTTP);
 	};
 	xmlHTTP.send(params);
-}
-
-function TestSoap () {
-	var xmlHTTP = new XMLHttpRequest();
-	xmlHTTP.open("POST", "http://ws.tramtracker.com.au/pidsservice/pids.asmx",true);
-	xmlHTTP.setRequestHeader( "Content-Type","text/xml; charset=utf-8");
-	xmlHTTP.setRequestHeader(
-		"SOAPAction", "http://www.yarratrams.com.au/pidsservice/GetNextPredictedRoutesCollection");
-
-	strRequest = "<?xml version='1.0' encoding='utf-8'?>";
-	strRequest = strRequest + '<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">';
-	strRequest = strRequest + '<soap:Header>';
-	strRequest = strRequest + '<PidsClientHeader xmlns="http://www.yarratrams.com.au/pidsservice/">';
-	strRequest = strRequest + '<ClientGuid>9829137b-a174-4039-8451-41905003e8e0</ClientGuid>';
-	strRequest = strRequest + '<ClientType>WEBPID</ClientType>';
-	strRequest = strRequest + '<ClientVersion>1.0</ClientVersion>';
-	strRequest = strRequest + '<ClientWebServiceVersion>6.4.0.0</ClientWebServiceVersion>';
-	strRequest = strRequest + '</PidsClientHeader>';
-	strRequest = strRequest + '</soap:Header>';
-	strRequest = strRequest + '<soap:Body>';
-	strRequest = strRequest + '<GetNextPredictedRoutesCollection xmlns="http://www.yarratrams.com.au/pidsservice/">';
-	strRequest = strRequest + '<stopNo>1923</stopNo>';
-	strRequest = strRequest + '<routeNo>0</routeNo>';
-	strRequest = strRequest + '<lowFloor>false</lowFloor>';
-	strRequest = strRequest + '</GetNextPredictedRoutesCollection>';
-	strRequest = strRequest + '</soap:Body>';
-	strRequest = strRequest + '</soap:Envelope>';
-
-	xmlHTTP.onreadystatechange = function () {
-		if (xmlHTTP.readyState == 4 && xmlHTTP.status == 200) {
-			console.log("Got a response from TRAMTRACKER...");
-
-    		console.log("done!");
-    	}
-	}
-	xmlHTTP.send(strRequest);
-}
-
-function MyStringify (array) {
-	var object = {};
-	for (i = 0; i < array.length; i++) {
-		object[i] = array[i];
-		if (i == 3)
-			break;
-	}
-	console.log("Size:" + roughSizeOfObject(object));
-	return object;
-}
-
-function roughSizeOfObject( object ) {
-
-    var objectList = [];
-    var stack = [ object ];
-    var bytes = 0;
-
-    while ( stack.length ) {
-        var value = stack.pop();
-
-        if ( typeof value === 'boolean' ) {
-            bytes += 4;
-        }
-        else if ( typeof value === 'string' ) {
-            bytes += value.length * 2;
-        }
-        else if ( typeof value === 'number' ) {
-            bytes += 8;
-        }
-        else if
-        (
-            typeof value === 'object'
-            && objectList.indexOf( value ) === -1
-        )
-        {
-            objectList.push( value );
-
-            for( i in value ) {
-                stack.push( value[ i ] );
-            }
-        }
-    }
-    return bytes;
 }
