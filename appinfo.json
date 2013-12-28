@@ -26,6 +26,41 @@
       },
       {
         "type": "png",
+        "name": "IMAGE_TWO_STOP",
+        "file": "images/two_stop.png"
+      },
+      {
+        "type": "png",
+        "name": "IMAGE_THREE_STOP",
+        "file": "images/three_stop.png"
+      },
+      {
+        "type": "png",
+        "name": "IMAGE_FOUR_STOP",
+        "file": "images/four_stop.png"
+      },
+      {
+        "type": "png",
+        "name": "IMAGE_FIVE_STOP",
+        "file": "images/five_stop.png"
+      },
+      {
+        "type": "png",
+        "name": "IMAGE_SIX_STOP",
+        "file": "images/six_stop.png"
+      },
+      {
+        "type": "png",
+        "name": "IMAGE_SEVEN_STOP",
+        "file": "images/seven_stop.png"
+      },
+      {
+        "type": "png",
+        "name": "IMAGE_EIGHT_STOP",
+        "file": "images/eight_stop.png"
+      },
+      {
+        "type": "png",
         "name": "IMAGE_NINE_STOP",
         "file": "images/nine_stop.png"
       }

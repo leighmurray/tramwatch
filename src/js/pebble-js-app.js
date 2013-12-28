@@ -112,7 +112,7 @@ function readyStateChange (xmlHTTP) {
 					if (!(routeNumberStr in routesArray)) {
 						routesArray[routeNumberStr] = new Array();
 					}
-					routesArray[routeNumberStr].push(tramInfo.Arrival);
+					routesArray[routeNumberStr].push(tramInfo.Arrival.replace("NOW", "0"));
 
 					//timeString += tramInfo.Arrival + ",";
 					//pebbleResponse.push(tramInfo.RouteNo);

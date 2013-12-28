@@ -20,10 +20,23 @@ int updateInterval = 15;
 int updateCounter = 0;
 char stopIDString[5];
 
-//1923
-//3400
-//3605
-//3013
+const int ROUTE_LAYOUT_IMAGE_RESOURCE_IDS[] = {
+  RESOURCE_ID_IMAGE_ONE_STOP,
+  RESOURCE_ID_IMAGE_TWO_STOP,
+  RESOURCE_ID_IMAGE_THREE_STOP,
+  RESOURCE_ID_IMAGE_FOUR_STOP,
+  RESOURCE_ID_IMAGE_FIVE_STOP,
+  RESOURCE_ID_IMAGE_SIX_STOP,
+  RESOURCE_ID_IMAGE_SEVEN_STOP,
+  RESOURCE_ID_IMAGE_EIGHT_STOP,
+  RESOURCE_ID_IMAGE_NINE_STOP
+};
+
+//3400 - 1 stop
+//1923 - 2 stops
+//3405 - 3 stops
+//3013 - 9 stops
+
 
 static void get_config () {
   text_layer_set_text(status_layer, "Getting Config...");
@@ -103,7 +116,7 @@ static void window_load(Window *window) {
   bitmap_layer_set_bitmap(background_layer, background_image);
   layer_add_child(window_layer, bitmap_layer_get_layer(background_layer));
 
-  route_layout_layer = bitmap_layer_create((GRect) { .origin = { 0, 34}, .size = { 144, 92 } });
+  route_layout_layer = bitmap_layer_create((GRect) { .origin = { 0, 34}, .size = { 144, 105 } });
   layer_add_child(window_layer, bitmap_layer_get_layer(route_layout_layer));
 
   text_layer = text_layer_create((GRect) { .origin = { 0, 0 }, .size = { bounds.size.w, 50 } });
@@ -152,12 +165,12 @@ static void render_time_layer (char *times) {
     strncpy(timeNumber, (char *)token, 100);
 
     static TextLayer *time;
-    time = text_layer_create((GRect) { .origin = {time_width * currentStrCnt , 0 }, .size = { time_width, bounds.size.h } });
+    time = text_layer_create((GRect) { .origin = {time_width * currentStrCnt , 5 }, .size = { time_width, bounds.size.h } });
     text_layer_set_background_color(time, GColorClear);
 	char *find = ",";
 	char *replace = "\n";
 	text_layer_set_text(time, str_replace(timeNumber, find, replace));
-    text_layer_set_font(time, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+    text_layer_set_font(time, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
     text_layer_set_text_alignment(time, GTextAlignmentCenter);
     layer_add_child(time_layer, text_layer_get_layer(time));
 
@@ -168,9 +181,12 @@ static void render_time_layer (char *times) {
 }
 
 static void set_route_layout_image (int number_of_routes) {
+  if (number_of_routes == 0)
+  	return;
+
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Setting Route Layout for %d routes.", number_of_routes);
   gbitmap_destroy(route_layout_image);
-  route_layout_image = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_NINE_STOP);
+  route_layout_image = gbitmap_create_with_resource(ROUTE_LAYOUT_IMAGE_RESOURCE_IDS[number_of_routes -1]);
   bitmap_layer_set_bitmap(route_layout_layer, route_layout_image);
 }
 
@@ -197,7 +213,7 @@ static void render_route_layer (char *routes) {
     strncpy(routeNumber, (char *)token, 100);
 
     static TextLayer *route;
-    route = text_layer_create((GRect) { .origin = {route_width * currentStrCnt , 0 }, .size = { route_width, bounds.size.h } });
+    route = text_layer_create((GRect) { .origin = {route_width * currentStrCnt , 5 }, .size = { route_width, bounds.size.h } });
     text_layer_set_background_color(route, GColorClear);
 
 	char *find = ",";
