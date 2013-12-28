@@ -12,7 +12,23 @@
   "appKeys": {
     "dummy": 0
   },
-  "resources": {
-    "media": []
+  "resources" : {
+    "media": [
+      {
+        "type": "png",
+        "name": "IMAGE_BACKGROUND",
+        "file": "images/background.png"
+      },
+      {
+        "type": "png",
+        "name": "IMAGE_ONE_STOP",
+        "file": "images/one_stop.png"
+      },
+      {
+        "type": "png",
+        "name": "IMAGE_NINE_STOP",
+        "file": "images/nine_stop.png"
+      }
+    ]
   }
 }

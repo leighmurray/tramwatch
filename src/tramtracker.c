@@ -3,6 +3,13 @@
 #include <myutils.h>
 
 static Window *window;
+
+static GBitmap *background_image;
+static BitmapLayer *background_layer;
+
+static GBitmap *route_layout_image;
+static BitmapLayer *route_layout_layer;
+
 static TextLayer *text_layer;
 static Layer *route_layer;
 static Layer *time_layer;
@@ -12,6 +19,7 @@ int currentStop = 0;
 int updateInterval = 15;
 int updateCounter = 0;
 char stopIDString[5];
+
 //1923
 //3400
 //3605
@@ -90,17 +98,28 @@ static void window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
 
+  background_image = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BACKGROUND);
+  background_layer = bitmap_layer_create(layer_get_frame(window_layer));
+  bitmap_layer_set_bitmap(background_layer, background_image);
+  layer_add_child(window_layer, bitmap_layer_get_layer(background_layer));
+
+  route_layout_layer = bitmap_layer_create((GRect) { .origin = { 0, 34}, .size = { 144, 92 } });
+  layer_add_child(window_layer, bitmap_layer_get_layer(route_layout_layer));
+
   text_layer = text_layer_create((GRect) { .origin = { 0, 0 }, .size = { bounds.size.w, 50 } });
   text_layer_set_text(text_layer, "TramWatch");
   text_layer_set_text_alignment(text_layer, GTextAlignmentCenter);
   text_layer_set_font(text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
+  text_layer_set_background_color(text_layer, GColorClear);
 
   route_layer = layer_create((GRect) { .origin = { 0, 42 }, .size = { bounds.size.w, 40 } });
 
   time_layer = layer_create((GRect) { .origin = { 0, 75 }, .size = { bounds.size.w, 100 } });
 
-  status_layer = text_layer_create((GRect) { .origin = { 0, 132 }, .size = { bounds.size.w, 20 } });
-  text_layer_set_text(status_layer, "-");
+  status_layer = text_layer_create((GRect) { .origin = { 0, 136 }, .size = { bounds.size.w, 20 } });
+  text_layer_set_background_color(status_layer, GColorClear);
+  text_layer_set_text_color(status_layer, GColorWhite);
+  text_layer_set_text(status_layer, "Connecting to Phone...");
   text_layer_set_text_alignment(status_layer, GTextAlignmentCenter);
   text_layer_set_font(status_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
 
@@ -134,10 +153,11 @@ static void render_time_layer (char *times) {
 
     static TextLayer *time;
     time = text_layer_create((GRect) { .origin = {time_width * currentStrCnt , 0 }, .size = { time_width, bounds.size.h } });
+    text_layer_set_background_color(time, GColorClear);
 	char *find = ",";
 	char *replace = "\n";
 	text_layer_set_text(time, str_replace(timeNumber, find, replace));
-    text_layer_set_font(time, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+    text_layer_set_font(time, fonts_get_system_font(FONT_KEY_GOTHIC_14));
     text_layer_set_text_alignment(time, GTextAlignmentCenter);
     layer_add_child(time_layer, text_layer_get_layer(time));
 
@@ -145,6 +165,13 @@ static void render_time_layer (char *times) {
 
   } while (strcmp(times, ""));
 
+}
+
+static void set_route_layout_image (int number_of_routes) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Setting Route Layout for %d routes.", number_of_routes);
+  gbitmap_destroy(route_layout_image);
+  route_layout_image = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_NINE_STOP);
+  bitmap_layer_set_bitmap(route_layout_layer, route_layout_image);
 }
 
 static void render_route_layer (char *routes) {
@@ -171,16 +198,20 @@ static void render_route_layer (char *routes) {
 
     static TextLayer *route;
     route = text_layer_create((GRect) { .origin = {route_width * currentStrCnt , 0 }, .size = { route_width, bounds.size.h } });
+    text_layer_set_background_color(route, GColorClear);
+
 	char *find = ",";
 	char *replace = "\n";
 	text_layer_set_text(route, str_replace(routeNumber, find, replace));
-    text_layer_set_font(route, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
+    text_layer_set_font(route, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
     text_layer_set_text_alignment(route, GTextAlignmentCenter);
     layer_add_child(route_layer, text_layer_get_layer(route));
 
 	currentStrCnt++;
 
   } while (strcmp(routes, ""));
+
+  set_route_layout_image(currentStrCnt);
 }
 
 static void set_stops (char *stopsToSet) {
@@ -298,6 +329,9 @@ static void init(void) {
 static void deinit(void) {
   window_destroy(window);
   tick_timer_service_unsubscribe();
+  layer_remove_from_parent(bitmap_layer_get_layer(background_layer));
+  bitmap_layer_destroy(background_layer);
+  gbitmap_destroy(background_image);
 }
 
 

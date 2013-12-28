@@ -84,11 +84,20 @@ function readyStateChange (xmlHTTP) {
 				// should send an app message prob
 				return;
 			}
+			// 19 is the amount of characters that fit the width of the screen at the chosen font size.
+			var stopName = jsonObject.TramTrackerResponse.StopName.substr(0, 19);
 
+			var cityDirection = " to " + jsonObject.TramTrackerResponse.CityDirection.split("towards ")[1].substr(0, 16);
+			var stopNameSecondary = jsonObject.TramTrackerResponse.StopNameSecondary.substr(0, 19);
+
+			/*
 			pebbleResponse[0] =// "" + jsonObject.TramTrackerResponse.StopID + "-" +
 								jsonObject.TramTrackerResponse.StopName.substr(0, 19)
 								+ "\n" + jsonObject.TramTrackerResponse.StopNameSecondary.substr(0, 19)
 								+ "\nto " + jsonObject.TramTrackerResponse.CityDirection.split("towards ")[1].substr(0, 19);
+			*/
+
+			pebbleResponse[0] = stopName + "\n" + stopNameSecondary + cityDirection;
 			var routesArray = {};
 			//timeString = "";
 			console.log("ArrivalsPages: " + jsonObject.TramTrackerResponse.ArrivalsPages.length);
