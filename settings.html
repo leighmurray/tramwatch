@@ -24,7 +24,7 @@
           <label for="stop3">Tracker Stop ID 3:</label>
           <input type="text" pattern="[0-9]*" maxlength="4" name="stop3" />
         </div>
-
+		<!--
         <div data-role="controlgroup" data-type="horizontal">
 			<legend>Refresh (in seconds)</legend>
      		<input type="radio" name="refresh" id="radio-choice-1" value="0" />
@@ -39,7 +39,7 @@
      		<input type="radio" name="refresh" id="radio-choice-4" value="60"  />
      		<label for="radio-choice-4">60</label>
         </div>
-
+		-->
         <div class="ui-body ui-body-b">
           <fieldset class="ui-grid-a">
               <div class="ui-block-a"><button type="submit" data-theme="d" id="b-cancel">Cancel</button></div>
@@ -52,19 +52,42 @@
       </div>
     </div>
     <script>
+    	function populate(frm, data) {
+    	$.each(data, function(key, value){
+    	var $ctrl = $('[name='+key+']', frm);
+    	switch($ctrl.attr("type"))
+    	{
+        	case "text" :
+        	case "hidden":
+        	case "textarea":
+        		$ctrl.val(value);
+        		break;
+        	case "radio" : case "checkbox":
+        		$ctrl.each(function(){
+           			if($(this).attr('value') == value) {  $(this).attr("checked",value); } });
+        			break;
+    			}
+    		});
+		}
       $().ready(function() {
         $("#b-cancel").click(function() {
-          console.log("Cancel");
           document.location = "pebblejs://close";
+          return false;
         });
 
         $("#b-submit").click(function() {
 			SubmitIt();
+			return false;
         });
         $('form').submit(function(e) {
 			SubmitIt();
     		return false;
 		});
+		if (window.location.hash) {
+			var decodedHash = decodeURI(window.location.hash.substr(1));
+			console.log(decodedHash);
+			populate($('form'), $.parseJSON(decodedHash));
+		}
       });
       function SubmitIt () {
       	console.log("Submit");

@@ -1,4 +1,5 @@
 var currentStopID;
+var configKeys = ["stop1","stop2","stop3"];
 
 Object.prototype.getKeys=function() {
 	var keyArray = new Array();
@@ -32,13 +33,22 @@ function AddMessageListener () {
 	);
 	Pebble.addEventListener("showConfiguration",
 		function(e) {
-			Pebble.openURL("http://tw.leighmurray.com");
+
+			var url = "http://tw.leighmurray.com/settings.html#";
+			url += GetJSONConfig();
+			url = encodeURI(url);
+			console.log(url);
+			Pebble.openURL(url);
 		}
 	);
 	Pebble.addEventListener("webviewclosed",
   		function(e) {
   			var stopStr = "";
     		console.log("Configuration window returned: " + e.response);
+    		if (!e.response) {
+    			return;
+    		}
+
     		var configuration = JSON.parse(e.response);
 
     		for (var i = 0; i < configuration.length; i++) {
@@ -49,6 +59,17 @@ function AddMessageListener () {
   		}
 	);
 };
+
+function GetJSONConfig () {
+
+	var tempConfig = {};
+	for (var i=0; i<configKeys.length; i++) {
+		var configKey = configKeys[i];
+		tempConfig[configKey] = GetConfig(configKey);
+	}
+	var jsonConfig = JSON.stringify(tempConfig);
+	return jsonConfig;
+}
 
 function GetConfig (key) {
 	return window.localStorage.getItem(key);
