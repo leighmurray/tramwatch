@@ -107,8 +107,16 @@ function readyStateChange (xmlHTTP) {
 			}
 			// 19 is the amount of characters that fit the width of the screen at the chosen font size.
 			var stopName = jsonObject.TramTrackerResponse.StopName.substr(0, 19);
+			console.log("Direction:" + jsonObject.TramTrackerResponse.CityDirection);
 
-			var cityDirection = " to " + jsonObject.TramTrackerResponse.CityDirection.split("towards ")[1].substr(0, 16);
+			var cityDirection = jsonObject.TramTrackerResponse.CityDirection;
+
+			if (cityDirection.search("towards") >= 0)
+				cityDirection = " to " + cityDirection.split("towards ")[1].substr(0, 16);
+			else if (cityDirection.search("from") >= 0)
+				cityDirection = " from " + cityDirection.split("from ")[1].substr(0, 16);
+
+
 			var stopNameSecondary = jsonObject.TramTrackerResponse.StopNameSecondary.substr(0, 19);
 
 			/*
