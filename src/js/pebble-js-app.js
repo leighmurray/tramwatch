@@ -1,19 +1,23 @@
 var currentStopID;
 var configKeys = ["stop1","stop2","stop3"];
 
+function sortNumber(a,b) {
+    return a - b;
+}
+
 Object.prototype.getKeys=function() {
-	var keyArray = new Array();
+  var keyArray = [];
 	for (var key in this) {
 		if (key == "getKeys") continue;
 		keyArray.push(key);
 	}
 	return keyArray;
-}
+};
 
 
 Pebble.addEventListener("ready",
   function(e) {
-  	AddMessageListener();
+    AddMessageListener();
 	console.log("Yes, it's running!!!");
 	SendStops();
   }
@@ -21,16 +25,17 @@ Pebble.addEventListener("ready",
 
 function AddMessageListener () {
 	Pebble.addEventListener("appmessage",
-  		function(e) {
-  			console.log("Received message: " + e.payload[1]);
-  			if (e.payload[1] == "get_config") {
-				SendStops();
-  				return;
-  			}
-
-    		RetrieveStopInfo(e.payload[1]);
-  		}
-	);
+    function(e) {
+      if (e.payload.KEY_GET_TIMES) {
+        var stopID = e.payload.KEY_GET_TIMES;
+        RetrieveStopInfo(stopID);
+        
+      } else if (e.payload.KEY_GET_CONFIG) {
+        SendStops();
+        return;
+      }
+    }
+  );
 	Pebble.addEventListener("showConfiguration",
 		function(e) {
 
@@ -42,23 +47,23 @@ function AddMessageListener () {
 		}
 	);
 	Pebble.addEventListener("webviewclosed",
-  		function(e) {
-  			var stopStr = "";
-    		console.log("Configuration window returned: " + e.response);
-    		if (!e.response) {
-    			return;
-    		}
+    function(e) {
+      
+      console.log("Configuration window returned: " + e.response);
+      if (!e.response) {
+        return;
+      }
 
-    		var configuration = JSON.parse(e.response);
+      var configuration = JSON.parse(e.response);
 
-    		for (var i = 0; i < configuration.length; i++) {
-    			var returnedObject = configuration[i];
-				SetConfig(returnedObject.name, returnedObject.value);
-    		}
-    		SendStops();
-  		}
-	);
-};
+      for (var i = 0; i < configuration.length; i++) {
+        var returnedObject = configuration[i];
+        SetConfig(returnedObject.name, returnedObject.value);
+      }
+      SendStops();
+    }
+  );
+}
 
 function GetJSONConfig () {
 
@@ -76,7 +81,12 @@ function GetConfig (key) {
 }
 
 function SendStops () {
-	SendAppMessage("set_stops", GetConfig("stop1") + ";" + GetConfig("stop2") + ";" + GetConfig("stop3") + ";");
+  
+  var stopIDs = [GetConfig("stop1"), GetConfig("stop2"), GetConfig("stop3")];
+  
+  sendDictionary({
+    "KEY_STOP_IDS": stopIDs.join(';')
+  });
 }
 
 function SetConfig (key, value) {
@@ -91,9 +101,9 @@ function readyStateChange (xmlHTTP) {
 
 
 			console.log("Got a response from TRAMTRACKER...");
-
+      console.log(xmlHTTP.responseText);
 			var jsonObject = JSON.parse(xmlHTTP.responseText);
-
+      
 			if (jsonObject.ErrorMessage) {
 				console.log("TramTracker Request Error:" + jsonObject.ErrorMessage);
 				var splitErrorMessage = jsonObject.ErrorMessage.split("]")[1];
@@ -110,12 +120,11 @@ function readyStateChange (xmlHTTP) {
 			console.log("Direction:" + jsonObject.TramTrackerResponse.CityDirection);
 
 			var cityDirection = jsonObject.TramTrackerResponse.CityDirection;
-
-			if (cityDirection.search("towards") >= 0)
+      
+      if (cityDirection.search("towards") >= 0)
 				cityDirection = " to " + cityDirection.split("towards ")[1].substr(0, 16);
 			else if (cityDirection.search("from") >= 0)
 				cityDirection = " from " + cityDirection.split("from ")[1].substr(0, 16);
-
 
 			var stopNameSecondary = jsonObject.TramTrackerResponse.StopNameSecondary.substr(0, 19);
 
@@ -131,17 +140,22 @@ function readyStateChange (xmlHTTP) {
 			//timeString = "";
 			console.log("ArrivalsPages: " + jsonObject.TramTrackerResponse.ArrivalsPages.length);
 			for (var i = 0; i < jsonObject.TramTrackerResponse.ArrivalsPages.length; i++) {
+        
 				var arrivalsPage = jsonObject.TramTrackerResponse.ArrivalsPages[i];
-				for (var j = 0; j < arrivalsPage.length; j++) {
+				
+        for (var j = 0; j < arrivalsPage.length; j++) {
 					var tramInfo = arrivalsPage[j];
+          
 					/*if (routes.indexOf(tramInfo.RouteNo) < 0) {
 						routes.push(tramInfo.RouteNo);
 					}*/
+          
 					var routeNumberStr = tramInfo.RouteNo.toString();
 					if (!(routeNumberStr in routesArray)) {
-						routesArray[routeNumberStr] = new Array();
+						routesArray[routeNumberStr] = [];
 					}
-					routesArray[routeNumberStr].push(tramInfo.Arrival.replace("NOW", "0"));
+          
+					routesArray[routeNumberStr].push(parseInt(tramInfo.Arrival.replace("NOW", 0)));
 
 					//timeString += tramInfo.Arrival + ",";
 					//pebbleResponse.push(tramInfo.RouteNo);
@@ -153,15 +167,15 @@ function readyStateChange (xmlHTTP) {
 					if (tramInfo.HasSpecialEvent && tramInfo.SpecialEventMessage) {
 						specialEvent = tramInfo.SpecialEventMessage;
 					}
-    			}
-    			//timeString += ";";
+        }
 			}
 			var keys = routesArray.getKeys();
 			pebbleResponse[1] = keys.join(';')  + ";";
 			var timeString = "";
 			console.log("Routes Array: " + routesArray.toString());
-			for (var i=0; i< keys.length; i++) {
-				key = keys[i];
+			for (var k=0; k< keys.length; k++) {
+        var key = keys[k];
+        routesArray[key].sort(sortNumber);
 				timeString += routesArray[key].join(',') + ";";
 			}
 			pebbleResponse[2] = timeString;
@@ -169,41 +183,26 @@ function readyStateChange (xmlHTTP) {
 			if (specialEvent) {
 				//Pebble.showSimpleNotificationOnPebble("Special Event", specialEvent);
 			}
-
-			SendAppMessage("stopID", pebbleResponse[0]);
-			setTimeout(function () {CheckStopSendAppMessage(currentStopID, "routes", pebbleResponse[1]);}, 1000);
-			setTimeout(function () {CheckStopSendAppMessage(currentStopID, "times", pebbleResponse[2]);}, 2000);
+      console.log("name:" + pebbleResponse[0] + " ids:" + pebbleResponse[1] + " times:" + pebbleResponse[2]);
+      var dictionary = {
+        "KEY_STOP_NAME": pebbleResponse[0],
+        "KEY_ROUTE_IDS": pebbleResponse[1],
+        "KEY_ROUTE_TIMES": pebbleResponse[2]
+      };
+      sendDictionary(dictionary);
 		}
 }
 
-function CheckStopSendAppMessage (stopID, header, content) {
-	if (stopID == currentStopID) {
-		SendAppMessage(header, content);
-	}
-}
-
-function SendAppMessage (header, content) {
-	// TODO! Make headers/functions into int (use config for names)
-	// so more space available for content
-	var maxLength = 47;
-	maxLength -= header.length;
-	if (content.length > maxLength) {
-		console.log("Warning! SendAppMessage trimming content to " + maxLength + ". Orig length:" + content.length);
-		content = content.substr(0, maxLength);
-	}
-	console.log("Sending Header: " + header + " with content: " + content);
-	var transactionId = Pebble.sendAppMessage(
-    	{
-    		"0":header,
-    		"1":content
-    	},
-  		function(e) {
-    		console.log("Successfully delivered message with transactionId=" + e.data.transactionId);
-    	},
-  		function(e) {
-    		console.log("Unable to deliver message with transactionId=" + e.data.transactionId + " Error is: " + e.message);
-  		}
-	);
+function sendDictionary (dictionary) {
+  console.log(dictionary);
+  Pebble.sendAppMessage(dictionary,
+    function(e) {
+      console.log("Event info sent to Pebble successfully!");
+    },
+    function(e) {
+      console.log("Error sending event info to Pebble!");
+    }
+  );
 }
 
 function RetrieveStopInfo (trackerStopID) {
@@ -217,3 +216,12 @@ function RetrieveStopInfo (trackerStopID) {
 	};
 	xmlHTTP.send(params);
 }
+
+var xhrRequest = function (url, type, callback) {
+  var xhr = new XMLHttpRequest();
+  xhr.onload = function () {
+    callback(this.responseText);
+  };
+  xhr.open(type, url);
+  xhr.send();
+};

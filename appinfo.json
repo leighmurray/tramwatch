@@ -1,69 +1,76 @@
 {
-  "uuid": "e7cf5b82-1245-4c0a-8b13-8e3a9a73d196",
-  "shortName": "TramWatch",
-  "longName": "TramWatch",
-  "companyName": "Leigh Murray",
-  "versionCode": 1,
-  "capabilities": [ "configurable" ],
-  "versionLabel": "1.0.0",
-  "watchapp": {
-    "watchface": false
-  },
-  "appKeys": {
-    "dummy": 0
-  },
-  "resources" : {
-    "media": [
-      {
-        "type": "png",
-        "name": "IMAGE_BACKGROUND",
-        "file": "images/background.png"
-      },
-      {
-        "type": "png",
-        "name": "IMAGE_ONE_STOP",
-        "file": "images/one_stop.png"
-      },
-      {
-        "type": "png",
-        "name": "IMAGE_TWO_STOP",
-        "file": "images/two_stop.png"
-      },
-      {
-        "type": "png",
-        "name": "IMAGE_THREE_STOP",
-        "file": "images/three_stop.png"
-      },
-      {
-        "type": "png",
-        "name": "IMAGE_FOUR_STOP",
-        "file": "images/four_stop.png"
-      },
-      {
-        "type": "png",
-        "name": "IMAGE_FIVE_STOP",
-        "file": "images/five_stop.png"
-      },
-      {
-        "type": "png",
-        "name": "IMAGE_SIX_STOP",
-        "file": "images/six_stop.png"
-      },
-      {
-        "type": "png",
-        "name": "IMAGE_SEVEN_STOP",
-        "file": "images/seven_stop.png"
-      },
-      {
-        "type": "png",
-        "name": "IMAGE_EIGHT_STOP",
-        "file": "images/eight_stop.png"
-      },
-      {
-        "type": "png",
-        "name": "IMAGE_NINE_STOP",
-        "file": "images/nine_stop.png"
-      }
-    ]
-  }
+    "appKeys": {
+        "KEY_GET_TIMES": 4,
+        "KEY_ROUTE_IDS": 1,
+        "KEY_ROUTE_TIMES": 2,
+        "KEY_STOP_IDS": 3,
+        "KEY_STOP_NAME": 0
+    },
+    "capabilities": [
+        "configurable"
+    ],
+    "companyName": "Leigh Murray",
+    "longName": "TramWatch",
+    "projectType": "native",
+    "resources": {
+        "media": [
+            {
+                "file": "images/background.png",
+                "name": "IMAGE_BACKGROUND",
+                "type": "png"
+            },
+            {
+                "file": "images/eight_stop.png",
+                "name": "IMAGE_EIGHT_STOP",
+                "type": "png"
+            },
+            {
+                "file": "images/five_stop.png",
+                "name": "IMAGE_FIVE_STOP",
+                "type": "png"
+            },
+            {
+                "file": "images/four_stop.png",
+                "name": "IMAGE_FOUR_STOP",
+                "type": "png"
+            },
+            {
+                "file": "images/nine_stop.png",
+                "name": "IMAGE_NINE_STOP",
+                "type": "png"
+            },
+            {
+                "file": "images/one_stop.png",
+                "name": "IMAGE_ONE_STOP",
+                "type": "png"
+            },
+            {
+                "file": "images/seven_stop.png",
+                "name": "IMAGE_SEVEN_STOP",
+                "type": "png"
+            },
+            {
+                "file": "images/six_stop.png",
+                "name": "IMAGE_SIX_STOP",
+                "type": "png"
+            },
+            {
+                "file": "images/three_stop.png",
+                "name": "IMAGE_THREE_STOP",
+                "type": "png"
+            },
+            {
+                "file": "images/two_stop.png",
+                "name": "IMAGE_TWO_STOP",
+                "type": "png"
+            }
+        ]
+    },
+    "shortName": "TramWatch",
+    "uuid": "e7cf5b82-1245-4c0a-8b13-8e3a9a73d196",
+    "versionCode": 1,
+    "versionLabel": "1.0",
+    "watchapp": {
+        "watchface": false
+    }
 }

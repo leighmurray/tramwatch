@@ -2,6 +2,12 @@
 #include <pebble_fonts.h>
 #include <myutils.h>
 
+#define KEY_STOP_NAME 0
+#define KEY_ROUTE_IDS 1
+#define KEY_ROUTE_TIMES 2
+#define KEY_STOP_IDS 3
+#define KEY_GET_TIMES 4
+  
 static Window *window;
 
 static GBitmap *background_image;
@@ -63,17 +69,32 @@ static void fetch_stop_data () {
   updateCounter = 0;
 }
 
+static void get_stop_data () {
+  // Begin dictionary
+  DictionaryIterator *iter;
+  app_message_outbox_begin(&iter);
+  
+  // Add a key-value pair
+  //dict_write_uint8(iter, KEY_GET_TIMES, stopIDs[currentStop]);
+  Tuplet value = TupletInteger(KEY_GET_TIMES, stopIDs[currentStop]);
+  dict_write_tuplet(iter, &value);
+  
+  // Send the message!
+  app_message_outbox_send();
+  text_layer_set_text(status_layer, "Sending Request...");
+}
+
 static void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
     updateCounter++;
     if (updateCounter >= updateInterval) {
-    	fetch_stop_data();
+    	//get_stop_data();
     }
 }
 
 static void set_current_stop (int stopNumber) {
 	currentStop = stopNumber;
 
-    snprintf(stopIDString, 5, "%d", stopIDs[currentStop]);
+  snprintf(stopIDString, 5, "%d", stopIDs[currentStop]);
 }
 
 static void cycle_current_stop () {
@@ -89,7 +110,7 @@ static void cycle_current_stop () {
 }
 
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
-  //fetch_stop_data();
+  get_stop_data();
 }
 
 static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
@@ -98,7 +119,7 @@ static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
 
 static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
   cycle_current_stop();
-  fetch_stop_data();
+  get_stop_data();
 }
 
 static void click_config_provider(void *context) {
@@ -251,7 +272,7 @@ static void set_stops (char *stopsToSet) {
   } while (strcmp(stopsToSet, ""));
 
   text_layer_set_text(status_layer, "Config set");
-  fetch_stop_data();
+  get_stop_data();
 }
 
 static void window_unload(Window *window) {
@@ -269,13 +290,58 @@ void out_sent_handler(DictionaryIterator *sent, void *context) {
 
 void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context) {
   // outgoing message failed
-  text_layer_set_text(status_layer, "Failed!");
+  text_layer_set_text(status_layer, "Failed to send!");
 }
 
 enum {
     HEADER_KEY,
     DATA_KEY,
 };
+
+
+static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
+  Tuple *t = dict_read_first(iterator);
+  
+  text_layer_set_text(status_layer, "Done");
+  
+  //APP_LOG(APP_LOG_LEVEL_INFO, "Recieved some shizz!");
+  
+  // For all items
+  while(t != NULL) {
+    //APP_LOG(APP_LOG_LEVEL_INFO, "IT'S NOT NULL");
+    // Which key was received?
+    switch(t->key) {
+      case KEY_STOP_NAME:
+        APP_LOG(APP_LOG_LEVEL_INFO, "Got Stop Name");
+        static char stopID[256];
+        strncpy(stopID, (char *)t->value->cstring, 256);
+        text_layer_set_text(text_layer, stopID);
+        break;
+      case KEY_ROUTE_IDS:
+        APP_LOG(APP_LOG_LEVEL_INFO, "Got Route IDs");
+        render_route_layer(t->value->cstring);
+          //day_start_time = (time_t)t->value->int32;
+          //APP_LOG(APP_LOG_LEVEL_INFO, "Set Start Time to: %ld", day_start_time);
+        break;
+      case KEY_ROUTE_TIMES:
+        APP_LOG(APP_LOG_LEVEL_INFO, "Got Route Times");
+        render_time_layer(t->value->cstring);
+          //day_end_time = (time_t)t->value->int32;
+          //APP_LOG(APP_LOG_LEVEL_INFO, "Set End Time");
+        break;
+      case KEY_STOP_IDS:
+        set_stops(t->value->cstring);
+        break;
+      default:
+        APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d not recognized!", (int)t->key);
+        break;
+    }
+
+    // Look for next item
+    t = dict_read_next(iterator);
+  }
+}
+
 
 void in_received_handler(DictionaryIterator *iter, void *context) {
   // incoming message received
@@ -330,16 +396,14 @@ static void init(void) {
   const bool animated = true;
   window_stack_push(window, animated);
 
-  app_message_register_inbox_received(in_received_handler);
+  app_message_register_inbox_received(inbox_received_callback);
   app_message_register_inbox_dropped(in_dropped_handler);
   app_message_register_outbox_sent(out_sent_handler);
   app_message_register_outbox_failed(out_failed_handler);
 
   tick_timer_service_subscribe(SECOND_UNIT, handle_second_tick);
-
-  const uint32_t inbound_size = 64;
-  const uint32_t outbound_size = 64;
-  app_message_open(inbound_size, outbound_size);
+  
+  app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
 }
 
 static void deinit(void) {
